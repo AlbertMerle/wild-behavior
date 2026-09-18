@@ -1,0 +1,46 @@
+{
+	"schemaVersion": 1,
+	"id": "wild-behavior",
+	"version": "${version}",
+	"name": "Wild Behavior",
+	"description": "Default flee behavior for animal mobs with ocelot-style sneaking and chain panic.",
+	"authors": [
+		"Me!"
+	],
+	"license": "CC0-1.0",
+	"icon": "assets/wild-behavior/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.wildbehavior.fabric.WildBehaviorFabric"
+		],
+		"client": [
+			"com.wildbehavior.fabric.WildBehaviorFabricClient"
+		],
+		"modmenu": [
+			"com.wildbehavior.fabric.WildBehaviorModMenu"
+		]
+	},
+	"mixins": [
+		"wild-behavior.mixins.json",
+		"wild-behavior.alexsmobs.mixins.json",
+		"wild-behavior.weaponmod.mixins.json",
+		{
+			"config": "wild-behavior.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"architectury": ">=21.0.7",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"alexsmobs": "*",
+		"weaponmod": "*",
+		"cloth-config": "*",
+		"modmenu": "*"
+	}
+}

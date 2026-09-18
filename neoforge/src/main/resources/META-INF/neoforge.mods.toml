@@ -1,0 +1,53 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "CC0-1.0"
+
+[[mods]]
+modId = "wild_behavior"
+version = "${version}"
+displayName = "Wild Behavior"
+authors = "Me!"
+description = '''
+Default flee behavior for animal mobs with ocelot-style sneaking and chain panic.
+'''
+logoFile = "assets/wild-behavior/icon.png"
+
+[[dependencies.wild_behavior]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.2,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.wild_behavior]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.2.0.40-beta,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.wild_behavior]]
+modId = "architectury"
+type = "required"
+versionRange = "[21.0.7,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.wild_behavior]]
+modId = "cloth_config"
+type = "optional"
+versionRange = "*"
+ordering = "NONE"
+side = "CLIENT"
+
+[[mixins]]
+config = "wild-behavior.mixins.json"
+
+[[mixins]]
+config = "wild-behavior.client.mixins.json"
+
+[[mixins]]
+config = "wild-behavior.alexsmobs.mixins.json"
+
+[[mixins]]
+config = "wild-behavior.weaponmod.mixins.json"

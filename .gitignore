@@ -1,0 +1,25 @@
+.gradle/
+build/
+out/
+classes/
+*.launch
+.idea/
+*.iml
+*.ipr
+*.iws
+.settings/
+.vscode/
+bin/
+.classpath
+.project
+*.DS_Store
+run/
+**/run/
+libs/*.jar
+hs_err_*.log
+replay_*.log
+*.hprof
+*.jfr
+
+# Local AI agent memory — not published to GitHub
+aidata/

@@ -1,0 +1,349 @@
+WILD BEHAVIOR — AI LAYOUT
+==========================
+Mod ID: wild-behavior
+Config: config/wild-behavior.json (schema v29+)
+Entry point for ticking: MobFleeTickMixin injects into Mob.serverAiStep()
+
+
+================================================================================
+1. CONFIG MODEL — HOW MOBS GET THEIR BEHAVIORS
+================================================================================
+
+Your assumption is mostly correct: each mob type has its own config entry with
+independent toggles and numeric settings. Wild Behavior only runs when:
+
+  mobBehaviors.<entity_id>.enabled = true   (master switch for that mob type)
+
+Each mob can have any combination of the core behavior flags that apply to its
+entity category. There are important exceptions (see below).
+
+CORE BEHAVIOR FLAGS (per mob, in mobBehaviors.<id>)
+---------------------------------------------------
+  herd          — Group wandering, grazing, leader/follower travel
+  playerfear    — Flee from players when they get close
+  passive       — Flee from mobs that have Aggressive enabled
+  aggressive    — Hunt/chase players (and other targets; see Aggressive logic)
+  weaponscare   — Flee from nearby explosions and flying arrows
+  passivefear   — This mob type is a "fear source" for other mobs (entity tag)
+  defender      — Golems only: attack Aggressive mobs, ignore players
+  stayonlandfix — Herding mobs avoid water at all costs; if stuck in water they
+                  pathfind to the nearest land before resuming herd behavior
+                  (ticked just above Herd; ignored while fleeing/aggro so those
+                  may enter water). Aquatic mobs are exempt.
+  fightback     — When damaged, retaliate against the attacker (requires Passive
+                  or Aggressive on same mob)
+
+PER-MOB NUMERIC / EXTRA SETTINGS
+--------------------------------
+  confidence           — Min same-species count before Aggressive attacks (pack size)
+  memory               — Seconds to keep chasing/fleeing a player after losing LOS
+  speed                — Flee speed (blocks/sec); 0 = global default
+  herdspeed            — Herd walk speed; 0 = vanilla walk speed
+  damage               — Melee damage for Aggressive/Defender; 0 = attribute default
+  fightbackhelp        — Allies within 20 blocks that join FightBack (0 = none)
+  waterAggression      — Aggressive only acquires targets touching water;
+                         also allows hunting fish/squid/sea creatures as Passive prey.
+                         Without it, land Aggressive mobs ignore aquatic prey.
+  aggressivekilltimer  — Seconds after a kill before Aggressive can hunt again
+  flightfleemin/max    — Flee distance for bats, bees, Alex flying birds
+
+GLOBAL SETTINGS (apply to all mobs unless overridden)
+-----------------------------------------------------
+  flee.distanceMin/Max       — Default flee run length (48–72 blocks)
+  flee.chainRadius           — Pack spook radius for player threats
+  flee.defaultSpeedBps       — Flee speed when per-mob speed is 0
+  weaponScare.*              — Explosion/arrow radii and memory
+  spookRadius                — Chain spook for weapon-scare events
+  herd.*                     — Link range, wander/graze timers, repath intervals
+  detectRange                — Player/threat detection radius
+  aggressiveAlertRange       — Pack alert when Passive flees Aggressive mob
+  specialSettings.oneshotonFear — Arrows one-shot Passive/PlayerFear mobs
+
+WHO CAN HAVE WHAT (exceptions to "any mob, any setting")
+--------------------------------------------------------
+  Golems (iron/snow):           Defender only
+  Villagers:                    Herd, Passive, PlayerFear, WeaponScare, FightBack
+  Vanilla hostiles (zombie etc.): Not managed by Wild Behavior by default
+  Optional modded mobs:         All flags available when enabled in config
+  Alex's Mobs:                  Integration defaults in ModCompat; many pre-tuned
+
+  FightBack requires Passive OR Aggressive on the same mob.
+  FlightFlee settings only matter for bats, bees, and Alex flying birds.
+  WaterAggression only matters when Aggressive is on. Without it, Aggressive
+  mobs will not hunt fish/squid/sea creatures; with it, they may (and only
+  acquire new targets that are touching water).
+
+  Creative/spectator players are ignored for fear, aggro, fight-back, weapon scare.
+
+  Village/trader calm: animals in villages or near fence/bed/oak door (6 blocks)
+  ignore player flee triggers (still flee Aggressive mobs via Passive).
+
+  Tamed/trusted/fed-by-player mobs bypass Aggressive toward that player.
+  Aggressive baby AgeableMobs flee instead of attacking.
+
+
+================================================================================
+2. BEHAVIOR PRIORITY — WHAT WINS WHEN MULTIPLE THINGS COULD HAPPEN
+================================================================================
+
+Wild Behavior does NOT use Minecraft GoalSelector priorities for its custom
+systems. Instead, MobFleeTickMixin runs Wild Behavior systems in a fixed order
+each tick (before navigation). Vanilla and mod goal AI always keep ticking —
+Wild Behavior overlays movement/combat on top when a behavior flag is enabled
+AND that system has something to do this tick.
+
+When a mob is enabled but every behavior flag is off (or no threat triggers an
+enabled behavior), nothing in Wild Behavior drives the mob — it uses its natural
+AI: vanilla GoalSelector for vanilla animals, Alex's Mobs goals/mixins for Alex
+entities.
+
+TICK ORDER (MobFleeTickMixin.serverAiStep, BEFORE PathNavigation.tick)
+------------------------------------------------------------------------
+  GOLEMS:
+    1. Defender
+
+  VILLAGERS:
+    1. FightBack (if active)
+    2. Herd (if FightBack not active and Herd enabled)
+
+  ALL OTHER MANAGED MOBS:
+    1. Aggressive
+    2. FightBack
+    3. Flee (if FightBack not active)
+    4. Herd (if FightBack not active)
+
+AFTER PathNavigation.tick:
+    MobBlockStepHelper — 1-block ledge step up/down while moving (not a behavior
+    priority; movement assist only)
+
+PRIORITY SUMMARY (highest → lowest)
+-----------------------------------
+  1. Flee (active run)           — Ongoing flee/landing always blocks herd
+  2. FightBack (active)          — Blocks flee start and herd; overrides Aggressive
+  3. Aggressive (active chase)   — Blocks herd; clears if mob starts fleeing
+  4. Defender (golems)           — Clears if flee or Aggressive on same mob
+  5. New flee threat detected    — Can interrupt idle herd; stops FightBack on hit
+  6. Herd (when herd flag on)    — Wild Behavior herd travel/graze
+  7. Natural behavior            — Vanilla or Alex/mod goal AI (always running)
+
+CROSS-SYSTEM RULES (important edge cases)
+-----------------------------------------
+  • Mob currently fleeing → Aggro cleared; Herd skipped
+  • Mob currently fight-backing → Flee tick skipped; Herd skipped
+  • Mob currently aggroing → Herd skipped
+  • Player in detect range + mob has Aggressive → Flee from that player is suppressed
+    (Aggressive wins over PlayerFear for that player)
+  • Mob aggroing non-player → PlayerFear flee can still trigger
+  • FightBack on damage → stops active flee, begins retaliation
+  • FightBack at ≤3 HP → switches to flee from attacker instead
+  • Defender clears when flee or Aggressive starts on the golem
+
+NATURAL BEHAVIOR (vanilla / Alex / mod goals — lowest priority)
+---------------------------------------------------------------
+Wild Behavior never skips GoalSelector.tick or Alex's per-entity goals.
+
+  • enabled=true but all behavior flags false → 100% natural AI
+  • enabled=true, flags on, but no threat/active state → natural AI for idle
+  • Herd flag off → AnimalHerdSystem does not run; mob wanders via vanilla/Alex
+  • Alex flying birds: WB does not clear Alex flight flag while idle (non-herd,
+    not fleeing) so Alex wander/flight goals work normally
+
+When a Wild Behavior system IS active (flee, herd, aggro, etc.), it issues
+navigation/move-control commands that overlay on top of still-ticking goals.
+Both may run in the same tick; WB's higher-priority action wins for movement.
+
+
+================================================================================
+3. EACH BEHAVIOR — WHAT IT DOES
+================================================================================
+
+PLAYER FEAR (playerfear)
+------------------------
+Trigger:  Player within detect range + line of sight + not ignored (calm village,
+          creative, fed/tamed/trusted for Aggressive mobs).
+
+Action:   Pick flee destination (48–72 blocks away by default), pathfind away,
+          sprint. Airborne mobs (bats, bees, Alex birds) flee to elevated point
+          8–12 blocks above threat.
+
+Water:    If chase ends while swimming (PlayerFear / Passive entity flee only),
+          scripted escape: 8 blocks forward → 90° turn + 20 blocks → 180° turn →
+          seek land → 12 blocks inland. Phases 1–3 ignore all WB behaviors; from
+          land-seek fear/aggro may interrupt; herd resumes after inland leg.
+          Files: AnimalWaterFleeEscapeSystem, AnimalWaterFleeEscapeState.
+
+End:      Reached safe distance, path done, threat gone, or Memory expires after
+          LOS break.
+
+Chain:    Nearby same-species mobs within flee.chainRadius also flee (no LOS needed
+          for chain recipients).
+
+Files:    AnimalFleeSystem, PlayerApproachDetector, ThreatApproachDetector
+
+
+PASSIVE (passive)
+-----------------
+Trigger:  Living entity with Aggressive enabled within detect range.
+
+Action:   Same flee machinery as PlayerFear but threat is the aggressive mob.
+
+Chain:    Uses aggressiveAlertRange for same-species pack spook.
+
+Note:     Also causes this mob to BE a threat to other Passive mobs when it has
+          Aggressive (see Aggressive).
+
+
+WEAPON SCARE (weaponscare)
+--------------------------
+Trigger:  Explosion within weaponScare.explosionRadius (vanilla + WeaponMod mortar/
+          cannon AdvancedExplosion) for WeaponScare-enabled mobs; flying weapon
+          projectiles within arrowRadius (WeaponScare only); or a recent gunshot /
+          projectile-fire memory (loud shots use gunshotRadius, default 48 blocks —
+          Passive and PlayerFear mobs flee within this range even without WeaponScare;
+          slower arrows use arrowRadius).
+
+Action:   Flee away from scare origin (position-based, not entity-based). Gunshots
+          use radius memory at fire position, not live flying-bullet detection.
+
+Chain:    Same-species spook via spookRadius.
+
+
+AGGRESSIVE (aggressive)
+-----------------------
+Trigger:  Nearest valid target within detect range:
+            • Player (if pack confidence met, LOS, not fed/tamed/trusted)
+            • Defender mob (if this mob should aggro defenders)
+            • Passive prey mob (if configured)
+          Blocked during AggressiveKillTimer after a kill.
+          Without WaterAggression: fish / squid / sea creatures are never prey
+          (stops polar bears etc. hunting under ice).
+          WaterAggression: aquatic Passive prey allowed; new targets must be in
+          water (chase can continue on land).
+
+Action:   Set attack target. Melee mobs chase + attack. Ranged mobs (skeleton etc.)
+          set target only — vanilla bow/crossbow goals handle shooting when WB
+          is not suppressing goals.
+
+Memory:   After LOS lost, continue chasing player for `memory` seconds.
+
+Chain:    Pack members within range force-aggro same player (20 tick cooldown).
+
+Baby:     AgeableMob babies with Aggressive flee players/Passive threats instead.
+
+Files:    AnimalAggroSystem, ThreatApproachDetector, AnimalMeleeCombat
+
+
+FIGHT BACK (fightback)
+----------------------
+Trigger:  Mob takes damage from a living attacker (not creative/spectator).
+
+Action:   Stop flee if active. Set target to attacker. Chase + melee.
+          fightbackhelp allies (same species, 20 blocks) also retaliate.
+
+End:      Target dead/out of range, or mob drops to ≤3 HP → flee instead.
+
+Note:     Works alongside Aggressive (e.g. crocodilians hit from shore).
+          While fight-backing, takes priority over Aggressive tick and Herd.
+
+Files:    AnimalFightBackSystem (via LivingEntityHurtMixin for onDamaged)
+
+
+DEFENDER (defender — golems)
+----------------------------
+Trigger:  Nearest mob with Aggressive enabled within range.
+
+Action:   Chase and melee. Ignores players and non-aggressive mobs.
+
+End:      No aggressive mobs nearby.
+
+Note:     Clears if golem starts fleeing or Aggressive (shouldn't happen normally).
+
+
+HERD (herd)
+-----------
+Trigger:  No flee, aggro, or fight-back active. Herd enabled. Mob is managed.
+
+Structure:
+  • Same-species mobs link within herd.linkRange (35 blocks default)
+  • Lowest UUID becomes leader
+  • Phases: WANDERING → GRAZING → GRAZE_REST → repeat
+
+Leader:   Picks wander direction, pathfinds to target, grazes at spots.
+Follower: Paths to slot behind leader with spacing (wider for large hitbox mobs).
+
+Solo:     If Herd disabled but mob still managed, solo wander/graze runs instead.
+
+Stuck:    After 2 s in same block, repath with alternate target (sidestep for
+          wide mobs).
+
+Idle:     20% chance every 10 s to pause movement 1 s.
+
+Water:    StayOnLandFix (priority just above Herd) forces any herding mob that
+          ends up in water to pathfind to the nearest land before herding
+          resumes. Suppressed while fleeing/aggro/fightback/defending and for
+          aquatic mobs. Files: AnimalStayOnLandSystem, AnimalStayOnLandState.
+
+Files:    AnimalHerdSystem, AnimalHerdState, HerdGroupData
+
+
+SPOOK / CHAIN REACTION (SpookSystem)
+------------------------------------
+Not a separate toggle — fires when any flee begins from PlayerFear, Passive,
+WeaponScare, or bat flee.
+
+Action:   Same-species mobs within chain radius also begin fleeing.
+Radius varies by threat type (player chain uses flee.chainRadius).
+
+
+================================================================================
+4. MOVEMENT HELPERS (not behaviors, but affect travel)
+================================================================================
+
+MobBlockStepHelper
+  After navigation tick: detect 1-block step up/down ahead on path.
+  Wide mobs (bbWidth ≥ 2): jump + jumpFromGround() for ledges.
+  Does NOT force jump when stuck in place for 3 seconds (removed 2026-08-02).
+
+MobNavigationHelper
+  Wraps moveTo with speed clamping for Citadel AdvancedPathNavigate (Alex mobs).
+
+Stuck recovery (flee / aggro / herd separately)
+  Flee:  repath after 2 s in same block; cancel flee after 20 s stuck
+  Aggro: repath after 2 s in same block
+  Herd:  repath after 2 s in same block; wide mobs use lateral sidestep targets
+
+
+================================================================================
+5. QUICK REFERENCE — "MOB IS DOING X, WHY?"
+================================================================================
+
+  Jumping at every ledge while herding     → MobBlockStepHelper step-up (normal)
+  Constant jumping while standing still    → Was wide stuck-jump recovery (removed)
+  Ignoring player until close                → PlayerFear needs LOS to start
+  Still chasing after hiding                 → Memory timer not expired
+  Wolf alone won't attack                    → Below confidence threshold
+  Elephant ignores Alex wander while herding  → Herd flag on; WB herd drives travel
+  Hummingbird stands still with WB enabled    → All behavior flags off? Should use Alex AI
+  Crocodile won't hunt on land               → waterAggression requires target in water
+  Polar bear hunts fish under ice            → without waterAggression, aquatic prey ignored
+  Skeleton punches instead of shoots         → WB suppressing goals without ranged exception
+  Pig won't flee creative player             → creative mode ignore
+  Cow in village ignores player              → VillageAnimalCalm
+
+
+================================================================================
+6. KEY SOURCE FILES
+================================================================================
+
+  MobFleeTickMixin.java          — Main tick orchestration
+  MobBehavior.java               — Behavior enum
+  AnimalBehaviorConfig.java      — JSON config schema
+  AnimalFleeSystem.java          — Flee + landing
+  AnimalAggroSystem.java         — Aggressive chase
+  AnimalFightBackSystem.java     — FightBack + help
+  AnimalDefenderSystem.java      — Golem defender
+  AnimalHerdSystem.java          — Herd/solo wander
+  SpookSystem.java               — Chain spook
+  ThreatApproachDetector.java    — Who threatens whom
+  PlayerApproachDetector.java    — Player LOS, calm, creative ignore
+  MobBlockStepHelper.java        — Ledge step assist

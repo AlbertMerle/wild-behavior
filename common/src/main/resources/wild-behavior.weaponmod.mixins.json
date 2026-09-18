@@ -1,0 +1,13 @@
+{
+	"required": false,
+	"plugin": "com.wildbehavior.compat.WildBehaviorMixinPlugin",
+	"package": "com.wildbehavior.compat.mixin.weaponmod",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"WeaponModGunshotMixin",
+		"WeaponModCannonShotMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

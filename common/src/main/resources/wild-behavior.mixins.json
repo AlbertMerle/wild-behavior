@@ -1,0 +1,31 @@
+{
+	"required": true,
+	"package": "com.wildbehavior.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"MobFleeTickMixin",
+		"VillagerFleeMixin",
+		"VillagerPanicTriggerMixin",
+		"LivingEntityHurtMixin",
+		"CombatTrackerDeathMessageMixin",
+		"BatFleeMixin",
+		"OcelotAccessor",
+		"AnimalFeedMixin",
+		"AnimalBreedMixin",
+		"AbstractHorseFeedMixin",
+		"AbstractHorseTamedMixin",
+		"AbstractHorseEatMixin",
+		"EntityUnloadMixin",
+		"EatBlockGoalMixin",
+		"ExplosionScareMixin",
+		"SquidAccessor",
+		"WolfAccessor",
+		"PlayerCrawlMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

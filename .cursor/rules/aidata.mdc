@@ -1,0 +1,33 @@
+---
+description: HARD RULE — always read aidata before work; always log conversations and code updates there
+alwaysApply: true
+---
+
+# aidata — hard rule (this project)
+
+This is **mandatory**, not optional. Do not skip it for “small” edits, questions, or follow-ups.
+
+The project’s knowledge base is `aidata/` at the **workspace root of `wild-behavior-arch`**.
+
+## Before any work
+
+1. Read `aidata/README.md`, `aidata/PROJECT.md`, `aidata/CURRENT_STATE.md`.
+2. Read recent `aidata/conversations/*.md` and `aidata/CHANGELOG.md` as needed.
+3. Do **not** start coding until those docs are read.
+4. Do **not** contradict documented decisions without explicit user approval.
+
+## After every session with meaningful work
+
+Update `aidata/` **before ending**. This includes:
+
+- **All conversations** that produced decisions, investigation, or implementation — write `aidata/conversations/YYYY-MM-DD-<topic>.md` (user request, what changed, decisions, notes for the next agent).
+- **All code changes** — conversation log plus `CHANGELOG.md`; update `CURRENT_STATE.md` when status, features, or gaps change.
+- Domain docs (`TECHNICAL_NOTES.md`, etc.) when APIs or patterns change.
+
+Trivial typo-only doc fixes may skip CHANGELOG. They still get a conversation log if the session is otherwise notable.
+
+## Conventions
+
+- Conversation files: `aidata/conversations/YYYY-MM-DD-<topic>.md`
+- Write for the next AI: concise, factual, actionable
+- Commit `aidata/` with code when the user asks to commit

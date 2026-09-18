@@ -1,0 +1,20 @@
+** Wild Behavior 1.2.3 **
+
+- Architectury: Fabric and NeoForge from one codebase (requires Architectury API 21.0.7+)
+
+- Upgrade to Aggressive setting. Checks for nearest target every few seconds, and reconsiders it's behavior. They will give up chasing a target after some time.
+
+** Wild Behavior 1.2.2 **
+
+- Added player crawl: hold Sneak + Sprint (Ctrl + Shift) to crawl on land
+- Crawling lets you get within 4 blocks of animals without being noticed
+- Crawling in grass/tall grass/ferns hides you from animals unless they run into you
+- Aggressive mobs search last-known position after losing sight (Memory still applies)
+- Animals no longer eat grass while fleeing, fighting, or walking with the herd
+- Fed / tamed / trusting mobs use vanilla (or Alex) AI instead of Wild Behavior overlay
+- Server AI performance improvements (less idle scanning; pack confidence caching)
+- Land Aggressive mobs no longer hunt fish / squid / sea creatures (WaterAggression predators still can)
+- Alex's Mobs: most presets start off; PlayerFear-only set on by default; grizzly + crocs/caiman/snapping turtle Aggressive on
+- Herd disabled by default on modded mobs (can still enable per-mob)
+- Commands / Cloth Config work on any living mob (including other mods); short vanilla IDs like `wolf` work
+- fabric.mod.json environment stays `*` so singleplayer/LAN loads correctly (set Modrinth site environment separately)

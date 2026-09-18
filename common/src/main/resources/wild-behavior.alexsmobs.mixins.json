@@ -1,0 +1,12 @@
+{
+	"required": false,
+	"plugin": "com.wildbehavior.compat.WildBehaviorMixinPlugin",
+	"package": "com.wildbehavior.compat.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"mixins": [
+		"AlexRhinocerosAllianceFixMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}
